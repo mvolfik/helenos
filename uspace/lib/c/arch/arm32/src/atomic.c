@@ -396,16 +396,50 @@ unsigned __atomic_fetch_add_4(volatile void *mem0, unsigned val, int model)
 	return ret - val;
 }
 
+unsigned __atomic_fetch_or_4(volatile void *mem0, unsigned val, int model)
+{
+	volatile unsigned *mem = mem0;
+
+	(void) model;
+
+	unsigned ret;
+
+	/*
+	 * The following instructions between labels 1 and 2 constitute a
+	 * Restartable Atomic Seqeunce. Should the sequence be non-atomic,
+	 * the kernel will restart it.
+	 */
+	asm volatile (
+	    "1:\n"
+	    "	adr %[ret], 1b\n"
+	    "	str %[ret], %[rp0]\n"
+	    "	adr %[ret], 2f\n"
+	    "	str %[ret], %[rp1]\n"
+	    "	ldr %[ret], %[addr]\n"
+	    "	orr %[ret], %[ret], %[imm]\n"
+	    "	str %[ret], %[addr]\n"
+	    "2:\n"
+	    : [ret] "=&r" (ret),
+	      [rp0] "=m" (ras_page[0]),
+	      [rp1] "=m" (ras_page[1]),
+	      [addr] "+m" (*mem)
+	    : [imm] "r" (val)
+	);
+
+	ras_page[0] = 0;
+	ras_page[1] = 0xffffffff;
+
+	return ret & ~val;
+}
+
 unsigned __atomic_fetch_sub_4(volatile void *mem, unsigned val, int model)
 {
-	return __atomic_fetch_add_4(mem, -val, model);
+	return __atomic_fetch_add((volatile unsigned *)mem, -val, model);
 }
 
 bool __atomic_test_and_set(volatile void *ptr, int memorder)
 {
-	volatile unsigned char *b = ptr;
-
-	unsigned char orig = __atomic_exchange_n(b, (unsigned char) true, memorder);
+	unsigned char orig = __atomic_exchange_n((volatile unsigned char *)ptr, (unsigned char) true, memorder);
 	return orig != 0;
 }
 
@@ -414,25 +448,58 @@ void __sync_synchronize(void)
 	// FIXME: Full memory barrier. We might need a syscall for this.
 }
 
+#define FETCH_AND_OP_4(op) \
+	unsigned __sync_fetch_and_##op##_4(volatile void *vptr, unsigned val) \
+	{ \
+		return __atomic_fetch_##op((volatile unsigned *)vptr, val, __ATOMIC_SEQ_CST); \
+	}
+
+FETCH_AND_OP_4(add);
+FETCH_AND_OP_4(sub);
+FETCH_AND_OP_4(or);
+
 unsigned __sync_add_and_fetch_4(volatile void *vptr, unsigned val)
 {
-	return __atomic_fetch_add_4(vptr, val, __ATOMIC_SEQ_CST) + val;
+	return __atomic_add_fetch((volatile unsigned *)vptr, val, __ATOMIC_SEQ_CST);
 }
 
 unsigned __sync_sub_and_fetch_4(volatile void *vptr, unsigned val)
 {
-	return __atomic_fetch_sub_4(vptr, val, __ATOMIC_SEQ_CST) - val;
+	return __atomic_sub_fetch((volatile unsigned *)vptr, val, __ATOMIC_SEQ_CST);
 }
 
 bool __sync_bool_compare_and_swap_4(volatile void *ptr, unsigned old_val, unsigned new_val)
 {
-	return __atomic_compare_exchange_4(ptr, &old_val, new_val, false,
+	return __atomic_compare_exchange_n((volatile unsigned *)ptr, &old_val, new_val, false,
 	    __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
 
 unsigned __sync_val_compare_and_swap_4(volatile void *ptr, unsigned old_val, unsigned new_val)
 {
-	__atomic_compare_exchange_4(ptr, &old_val, new_val, false,
+	__atomic_compare_exchange_n((volatile unsigned *)ptr, &old_val, new_val, false,
 	    __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 	return old_val;
+}
+
+bool __sync_bool_compare_and_swap_1(volatile void *ptr, unsigned char old_val, unsigned char new_val)
+{
+	return __atomic_compare_exchange_n((volatile unsigned char *)ptr, &old_val, new_val, false,
+	    __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
+unsigned char __sync_val_compare_and_swap_1(volatile void *ptr, unsigned char old_val, unsigned char new_val)
+{
+	__atomic_compare_exchange_n((volatile unsigned char *)ptr, &old_val, new_val, false,
+	    __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+	return old_val;
+}
+
+unsigned __sync_lock_test_and_set_4(volatile void *ptr, unsigned val)
+{
+	return __atomic_exchange_n((volatile unsigned *)ptr, val, __ATOMIC_ACQUIRE);
+}
+
+unsigned char __sync_lock_test_and_set_1(volatile void *ptr, unsigned char val)
+{
+	return __atomic_exchange_n((volatile unsigned char *)ptr, val, __ATOMIC_ACQUIRE);
 }
