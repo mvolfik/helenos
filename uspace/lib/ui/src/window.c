@@ -318,6 +318,13 @@ error:
 errno_t ui_window_create(ui_t *ui, ui_wnd_params_t *params,
     ui_window_t **rwindow)
 {
+	void* ebp;
+	asm volatile (
+		"movl %%ebp, %0"
+		: "=r" (ebp)
+	);
+	printf("ui_window_create ebp: %p\n", ebp);
+
 	ui_window_t *window;
 	ui_window_t *pwindow = NULL;
 	display_info_t info;

@@ -133,6 +133,13 @@ void __libc_main(void *pcb_ptr)
 		(void) vfs_cwd_set(__pcb->cwd);
 	}
 
+	void* ebp;
+	asm volatile (
+		"movl %%ebp, %0"
+		: "=r" (ebp)
+	);
+	printf("__libc_main ebp: %p\n", ebp);
+
 	/*
 	 * C++ Static constructor calls.
 	 */

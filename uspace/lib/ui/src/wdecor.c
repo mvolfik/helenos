@@ -330,6 +330,14 @@ errno_t ui_wdecor_sysmenu_hdl_paint_gfx(ui_wdecor_t *wdecor, gfx_rect_t *rect)
 	if (rc != EOK)
 		return rc;
 
+	void* ebp;
+	asm volatile (
+		"movl %%ebp, %0"
+		: "=r" (ebp)
+	);
+	printf("ui_wdecor_sysmenu_hdl_paint_gfx ebp: %p\n", ebp);
+
+	printf("rect addr: %p\n", rect);
 	center.x = (rect->p0.x + rect->p1.x) / 2;
 	center.y = (rect->p0.y + rect->p1.y) / 2;
 	mrect.p0.x = center.x - 7;
@@ -392,6 +400,13 @@ errno_t ui_wdecor_sysmenu_hdl_paint_text(ui_wdecor_t *wdecor, gfx_rect_t *rect)
  */
 errno_t ui_wdecor_sysmenu_hdl_paint(ui_wdecor_t *wdecor, gfx_rect_t *rect)
 {
+
+	void* ebp;
+	asm volatile (
+		"movl %%ebp, %0"
+		: "=r" (ebp)
+	);
+	printf("ui_wdecor_sysmenu_hdl_paint ebp: %p\n", ebp);
 	errno_t rc;
 
 	if (wdecor->res->textmode)
@@ -425,6 +440,12 @@ void ui_wdecor_sysmenu_hdl_set_active(ui_wdecor_t *wdecor, bool active)
  */
 errno_t ui_wdecor_paint(ui_wdecor_t *wdecor)
 {
+	void* ebp;
+	asm volatile (
+		"movl %%ebp, %0"
+		: "=r" (ebp)
+	);
+	printf("ui_wdecor_paint ebp: %p\n", ebp);
 	errno_t rc;
 	gfx_rect_t rect;
 	gfx_rect_t trect;

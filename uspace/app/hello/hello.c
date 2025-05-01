@@ -62,7 +62,13 @@ static void wnd_close(ui_window_t *window, void *arg)
 
 /** Run hello world on display server. */
 static errno_t hello(const char *display_spec)
-{
+{	void* ebp;
+	asm volatile (
+		"movl %%ebp, %0"
+		: "=r" (ebp)
+	);
+	printf("hello ebp: %p\n", ebp);
+
 	ui_t *ui = NULL;
 	ui_wnd_params_t params;
 	ui_window_t *window = NULL;
@@ -151,6 +157,13 @@ static void print_syntax(void)
 
 int main(int argc, char *argv[])
 {
+	void* ebp;
+	asm volatile (
+		"movl %%ebp, %0"
+		: "=r" (ebp)
+	);
+	printf("hello/main ebp: %p\n", ebp);
+
 	const char *display_spec = UI_ANY_DEFAULT;
 	errno_t rc;
 	int i;
